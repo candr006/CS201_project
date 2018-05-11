@@ -1,0 +1,13 @@
+Running the pass and the generated IR
+
+$ ./buildAndTest.sh sai # to test support/sai.c
+
+# Above script does the following:
+$ clang -emit-llvm support/sai.c -c -o support/sai.bc
+$ make clean && make && ~/Workspace/llvm/Debug+Asserts/bin/opt -load ../../../Debug+Asserts/lib/BasicBlocksDemo.dylib -bbdemo sai.bc -S -o support/sai.ll
+$ ~/Workspace/llvm/Debug+Asserts/bin/llvm-as support/sai.ll -o support/sai.bb.bc
+$ ~/Workspace/llvm/Debug+Asserts/bin/lli support/sai.bb.bc
+
+# tar -czf BasicBlocksDemo.tar.gz --exclude .git* --exclude *Store --exclude Debug* BasicBlocksDemo
+# tar -tvf BasicBlocksDemo.tar.gz
+
