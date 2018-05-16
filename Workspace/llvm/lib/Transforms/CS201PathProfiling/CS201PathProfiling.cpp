@@ -10,6 +10,9 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Type.h"
+ #include "llvm/ADT/iterator.h"
+ #include "llvm/ADT/iterator_range.h"
+#include "llvm/IR/CFG.h"
 #include <iostream>
 #include <string>
 
@@ -65,11 +68,21 @@ namespace {
     //----------------------------------
     bool runOnFunction(Function &F) override {
       errs() << "Function: " << F.getName() << '\n';
+
+      //DominatorTree fTree= DominatorTree(F);
  
       for(auto &BB: F) {
         // Add the footer to Main's BB containing the return 0; statement BEFORE calling runOnBasicBlock
         if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { // major hack?
+        	std::string test="b0";
+    		Twine bbname= Twine(test);
+    		BB.setName(bbname);
           addFinalPrintf(BB, Context, bbCounter, BasicBlockPrintfFormatStr, printf_func);
+        }else{
+        	std::string test="b"+(std::to_string(bbname_int));
+    		Twine bbname= Twine(test);
+    		BB.setName(bbname);
+    		bbname_int++;
         }
         runOnBasicBlock(BB);
       }
@@ -78,11 +91,6 @@ namespace {
     }
 
     bool runOnBasicBlock(BasicBlock &BB) {
-
-    	std::string test="b"+(std::to_string(bbname_int));
-    	Twine bbname= Twine(test);
-    	BB.setName(bbname);
-    	bbname_int++;
     	
       errs() << "BasicBlock: " << BB.getName() << '\n';
       IRBuilder<> IRB(BB.getFirstInsertionPt()); // Will insert the generated instructions BEFORE the first BB instruction
@@ -90,6 +98,18 @@ namespace {
       Value *loadAddr = IRB.CreateLoad(bbCounter);
       Value *addAddr = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), 1), loadAddr);
       IRB.CreateStore(addAddr, bbCounter);
+
+     /* int num_successors=BB.getTerminator()->getNumSuccessors();
+
+      for (int i=0; i<num_successors; i++){
+      	BasicBlock *bbSuccessor = BB.getTerminator()->getSuccessor(i);
+      	errs() << "Successor to "+BB.getName()+": " << bbSuccessor->getName() << '\n';
+      }*/
+
+	  succ_iterator end = succ_end(&BB);
+      for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
+      		errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
+      }
  
       for(auto &I: BB)
         errs() << I << "\n";
