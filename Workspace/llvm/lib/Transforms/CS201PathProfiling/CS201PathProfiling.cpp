@@ -119,14 +119,7 @@ namespace {
         	std::set<BasicBlock *> loop;
       		loop.insert(*sit);
       		loop.insert(&BB);
-
-          errs() << sit->getName() << " dominates " << BB.getName() << '\n';
-          pred_iterator end_pred_iterator = pred_end(&BB);
-      		for (pred_iterator pit = pred_begin(&BB);pit != end_pred_iterator; ++pit){
-      			//errs() << (*pit)->getName();
-      			s.push(*pit);
-      			loop.insert(*pit);
-      		}
+      		s.push(&BB);
 
       		while(!s.empty()){
 
@@ -141,6 +134,16 @@ namespace {
       			}
 
       		}
+
+         /* errs() << sit->getName() << " dominates " << BB.getName() << '\n';
+          pred_iterator end_pred_iterator = pred_end(&BB);
+      		for (pred_iterator pit = pred_begin(&BB);pit != end_pred_iterator; ++pit){
+      			//errs() << (*pit)->getName();
+      			s.push(*pit);
+      			loop.insert(*pit);
+      		}*/
+
+      		
       		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
       			errs() << (*it)->getName() << ",";
       		}
