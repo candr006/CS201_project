@@ -8,12 +8,14 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Type.h"
- #include "llvm/ADT/iterator.h"
- #include "llvm/ADT/iterator_range.h"
+#include "llvm/ADT/iterator.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/IR/CFG.h"
-#include "llvm/IR/Dominators.h"
+#include <stack>
+#include <set>
 #include <iostream>
 #include <string>
 
@@ -33,9 +35,9 @@ namespace {
     return func;
   }
 
-  struct CS201PathProfiling : public FunctionPass {
+  struct CS201PathProfiling : public DominatorTreeWrapperPass {
   static char ID;
-  CS201PathProfiling() : FunctionPass(ID) {}
+  //CS201PathProfiling() : FunctionPass(ID) {}
 	LLVMContext *Context;
 
     GlobalVariable *bbCounter = NULL;
@@ -48,10 +50,12 @@ namespace {
     bool doInitialization(Module &M) {
       errs() << "\n---------Starting BasicBlockDemo---------\n";
       Context = &M.getContext();
-      bbCounter = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, ConstantInt::get(Type::getInt32Ty(*Context), 0), "bbCounter");
+      bbCounter = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, 
+          ConstantInt::get(Type::getInt32Ty(*Context), 0), "bbCounter");
       const char *finalPrintString = "BB Count: %d\n";
       Constant *format_const = ConstantDataArray::getString(*Context, finalPrintString);
-      BasicBlockPrintfFormatStr = new GlobalVariable(M, llvm::ArrayType::get(llvm::IntegerType::get(*Context, 8), strlen(finalPrintString)+1), true, llvm::GlobalValue::PrivateLinkage, format_const, "BasicBlockPrintfFormatStr");
+      BasicBlockPrintfFormatStr = new GlobalVariable(M, llvm::ArrayType::get(llvm::IntegerType::get(*Context, 8), 
+          strlen(finalPrintString)+1), true, llvm::GlobalValue::PrivateLinkage, format_const, "BasicBlockPrintfFormatStr");
       printf_func = printf_prototype(*Context, &M);
  
       errs() << "Module: " << M.getName() << "\n";
@@ -65,31 +69,30 @@ namespace {
  
       return false;
     }
-    
+
     //----------------------------------
     bool runOnFunction(Function &F) override {
+      for(auto &BB: F) {
+        if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { 
+          std::string test="b0";
+          Twine bbname= Twine(test);
+          BB.setName(bbname);
+        }
+        else{
+          std::string test="b"+(std::to_string(bbname_int));
+          Twine bbname= Twine(test);
+          BB.setName(bbname);
+          bbname_int++;
+        }
+      }
+
+      DominatorTreeWrapperPass::runOnFunction(F);
+
       errs() << "Function: " << F.getName() << '\n';
 
-      //DominatorTree fTree= DominatorTree(F);
-
-     	for(auto &BB: F) {
-      	if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { 
-      		std::string test="b0";
-    		Twine bbname= Twine(test);
-    		BB.setName(bbname);
-      	}
-      	else{
-      		std::string test="b"+(std::to_string(bbname_int));
-    		Twine bbname= Twine(test);
-    		BB.setName(bbname);
-    		bbname_int++;
-    	}
-      }
- 
       for(auto &BB: F) {
         // Add the footer to Main's BB containing the return 0; statement BEFORE calling runOnBasicBlock
         if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { // major hack?
-        	
           addFinalPrintf(BB, Context, bbCounter, BasicBlockPrintfFormatStr, printf_func);
         }
         runOnBasicBlock(BB);
@@ -99,7 +102,6 @@ namespace {
     }
 
     bool runOnBasicBlock(BasicBlock &BB) {
-    	
       errs() << "BasicBlock: " << BB.getName() << '\n';
       IRBuilder<> IRB(BB.getFirstInsertionPt()); // Will insert the generated instructions BEFORE the first BB instruction
  
@@ -107,16 +109,46 @@ namespace {
       Value *addAddr = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), 1), loadAddr);
       IRB.CreateStore(addAddr, bbCounter);
 
-     /* int num_successors=BB.getTerminator()->getNumSuccessors();
-
-      for (int i=0; i<num_successors; i++){
-      	BasicBlock *bbSuccessor = BB.getTerminator()->getSuccessor(i);
-      	errs() << "Successor to "+BB.getName()+": " << bbSuccessor->getName() << '\n';
-      }*/
-
-	  succ_iterator end = succ_end(&BB);
+      succ_iterator end = succ_end(&BB);
       for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
-      		errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
+        errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
+
+        //found a back edge
+        if (getDomTree().dominates(sit->getTerminator(), &BB)){
+        	std::stack<BasicBlock *> s;
+        	std::set<BasicBlock *> loop;
+      		loop.insert(*sit);
+      		loop.insert(&BB);
+
+          errs() << sit->getName() << " dominates " << BB.getName() << '\n';
+          pred_iterator end_pred_iterator = pred_end(&BB);
+      		for (pred_iterator pit = pred_begin(&BB);pit != end_pred_iterator; ++pit){
+      			//errs() << (*pit)->getName();
+      			s.push(*pit);
+      			loop.insert(*pit);
+      		}
+
+      		while(!s.empty()){
+
+      			BasicBlock* m= s.top();
+      			s.pop();
+      			pred_iterator end_pred_iterator = pred_end(m);
+      			for (pred_iterator pit = pred_begin(m);pit != end_pred_iterator; ++pit){
+      				if(loop.find(*pit)==loop.end()){
+      					s.push(*pit);
+      					loop.insert(*pit);
+      				}
+      			}
+
+      		}
+      		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
+      			errs() << (*it)->getName() << ",";
+      		}
+
+        }
+
+
+
       }
  
       for(auto &I: BB)
