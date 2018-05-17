@@ -13,6 +13,7 @@
  #include "llvm/ADT/iterator.h"
  #include "llvm/ADT/iterator_range.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
 #include <iostream>
 #include <string>
 
@@ -70,19 +71,26 @@ namespace {
       errs() << "Function: " << F.getName() << '\n';
 
       //DominatorTree fTree= DominatorTree(F);
+
+     	for(auto &BB: F) {
+      	if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { 
+      		std::string test="b0";
+    		Twine bbname= Twine(test);
+    		BB.setName(bbname);
+      	}
+      	else{
+      		std::string test="b"+(std::to_string(bbname_int));
+    		Twine bbname= Twine(test);
+    		BB.setName(bbname);
+    		bbname_int++;
+    	}
+      }
  
       for(auto &BB: F) {
         // Add the footer to Main's BB containing the return 0; statement BEFORE calling runOnBasicBlock
         if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { // major hack?
-        	std::string test="b0";
-    		Twine bbname= Twine(test);
-    		BB.setName(bbname);
+        	
           addFinalPrintf(BB, Context, bbCounter, BasicBlockPrintfFormatStr, printf_func);
-        }else{
-        	std::string test="b"+(std::to_string(bbname_int));
-    		Twine bbname= Twine(test);
-    		BB.setName(bbname);
-    		bbname_int++;
         }
         runOnBasicBlock(BB);
       }
