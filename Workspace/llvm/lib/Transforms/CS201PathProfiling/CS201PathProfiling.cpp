@@ -44,7 +44,7 @@ namespace {
     GlobalVariable *BasicBlockPrintfFormatStr = NULL;
     Function *printf_func = NULL;
 
-    int bbname_int=0;
+	int bbname_int=0;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -72,18 +72,12 @@ namespace {
 
     //----------------------------------
     bool runOnFunction(Function &F) override {
+    	bbname_int=0;
       for(auto &BB: F) {
-        if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { 
-          std::string test="b0";
-          Twine bbname= Twine(test);
-          BB.setName(bbname);
-        }
-        else{
           std::string test="b"+(std::to_string(bbname_int));
           Twine bbname= Twine(test);
           BB.setName(bbname);
           bbname_int++;
-        }
       }
 
       DominatorTreeWrapperPass::runOnFunction(F);
@@ -135,18 +129,15 @@ namespace {
 
       		}
 
-         /* errs() << sit->getName() << " dominates " << BB.getName() << '\n';
-          pred_iterator end_pred_iterator = pred_end(&BB);
-      		for (pred_iterator pit = pred_begin(&BB);pit != end_pred_iterator; ++pit){
-      			//errs() << (*pit)->getName();
-      			s.push(*pit);
-      			loop.insert(*pit);
-      		}*/
 
-      		
+      		//Print Loop
+      		errs()<<"Loop: {";
+      		std::string comma="";
       		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
-      			errs() << (*it)->getName() << ",";
+      			errs() << comma <<(*it)->getName();
+      			comma=",";
       		}
+      		errs()<<"}"<<'\n';
 
         }
 
