@@ -43,8 +43,6 @@ namespace {
     GlobalVariable *bbCounter = NULL;
     GlobalVariable *BasicBlockPrintfFormatStr = NULL;
     Function *printf_func = NULL;
-
-	int bbname_int=0;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -72,7 +70,7 @@ namespace {
 
     //----------------------------------
     bool runOnFunction(Function &F) override {
-    	bbname_int=0;
+    	int bbname_int=0;
       for(auto &BB: F) {
           std::string test="b"+(std::to_string(bbname_int));
           Twine bbname= Twine(test);
