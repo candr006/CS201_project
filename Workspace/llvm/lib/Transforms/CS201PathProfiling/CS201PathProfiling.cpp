@@ -43,6 +43,9 @@ namespace {
     GlobalVariable *bbCounter = NULL;
     GlobalVariable *BasicBlockPrintfFormatStr = NULL;
     Function *printf_func = NULL;
+
+    std::vector<std::set<BasicBlock *> > loop_vector;
+    std::vector<bool> is_innermost;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -89,6 +92,37 @@ namespace {
         }
         runOnBasicBlock(BB);
       }
+
+      //check all loops in loop vector to identify innermost loop
+      for(int i=0; i<loop_vector.size(); i++){
+      	if(is_innermost[i]){
+	      	for(int j=0; j<loop_vector.size(); j++){
+	      		if(j!=i){
+	      			bool all_contained=true;
+	      			for(auto &m : loop_vector.at(i)){
+	      				if(loop_vector[j].find(m) == loop_vector.at(j).end()){
+	      					all_contained=false;
+	      					break;
+	      				}
+
+	      			}
+
+	      			if(all_contained){
+	      				is_innermost[j]=false;
+	      			}
+	      		}
+	      	}
+	    }
+      }
+
+      //all loops with an is_innermost value of true at this point are innermost loops
+      for(int i; i < is_innermost.size(); i++ ){
+      	if(is_innermost[i]){
+      		errs() << " Innermost Loop: " << i << '\n';
+      	}
+      }
+
+
  
       return true; 
     }
@@ -126,6 +160,10 @@ namespace {
       			}
 
       		}
+
+      		//add loop to loop vector
+      			loop_vector.push_back(loop);
+      			is_innermost.push_back(true);
 
 
       		//Print Loop
