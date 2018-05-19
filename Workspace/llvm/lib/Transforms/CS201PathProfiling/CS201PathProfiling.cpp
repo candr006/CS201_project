@@ -66,6 +66,12 @@ namespace {
  
     //----------------------------------
     bool doFinalization(Module &M) {
+    //all loops with an is_innermost value of true at this point are innermost loops
+      for(int i; i < is_innermost.size(); i++ ){
+      	if(is_innermost[i]){
+      		errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
+      	}
+      }
       errs() << "-------Finished BasicBlocksDemo----------\n";
  
       return false;
@@ -115,14 +121,6 @@ namespace {
 	    }
       }
 
-      //all loops with an is_innermost value of true at this point are innermost loops
-      for(int i; i < is_innermost.size(); i++ ){
-      	if(is_innermost[i]){
-      		errs() << " Innermost Loop: " << i << '\n';
-      	}
-      }
-
-
  
       return true; 
     }
@@ -137,7 +135,7 @@ namespace {
 
       succ_iterator end = succ_end(&BB);
       for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
-        errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
+        //errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
 
         //found a back edge
         if (getDomTree().dominates(sit->getTerminator(), &BB)){
@@ -165,16 +163,6 @@ namespace {
       			loop_vector.push_back(loop);
       			is_innermost.push_back(true);
 
-
-      		//Print Loop
-      		errs()<<"Loop: {";
-      		std::string comma="";
-      		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
-      			errs() << comma <<(*it)->getName();
-      			comma=",";
-      		}
-      		errs()<<"}"<<'\n';
-
         }
 
 
@@ -185,6 +173,18 @@ namespace {
         errs() << I << "\n";
  
       return true;
+    }
+
+    std::string printLoop(std::set<BasicBlock *> loop, std::string label){
+    	std::string formatted_loop=label+": {";
+  		std::string comma="";
+  		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
+  			formatted_loop=(formatted_loop+(comma+((*it)->getName()).str()));
+  			comma=",";
+  		}
+  		formatted_loop+="}";
+
+  		return formatted_loop;
     }
 
      //----------------------------------
