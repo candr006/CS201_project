@@ -134,6 +134,7 @@ namespace {
     else{
     //Get topological order of innermost loop
 	    std::stack<BasicBlock *> sorted_results;
+	    std::vector<BasicBlock *> reversed_results;
 	    std::vector<bool> visited;
 	    //Hold whether the mark is temporary or permanent
 	    std::vector<std::string> mark_type;
@@ -167,8 +168,17 @@ namespace {
 	    while(!sorted_results.empty()){
 	    	BasicBlock* r=sorted_results.top();
 	    	errs() << r->getName() << ",";
+	    	reversed_results.push_back(r);
 	    	sorted_results.pop();
 	    }
+	    errs() << "}" << '\n'; 
+
+	    std::reverse(reversed_results.begin(),reversed_results.end());
+	   	errs() << "Reverse Topological sort: {";
+
+	   	for(int i=0; i<reversed_results.size(); i++){
+	   		errs() << reversed_results[i]->getName() << ",";
+	   	}
 	    errs() << "}" << '\n'; 
     }
 
