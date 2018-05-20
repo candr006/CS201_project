@@ -133,7 +133,7 @@ namespace {
     }
     else{
     //Get topological order of innermost loop
-	    std::vector<BasicBlock *> sorted_results;
+	    std::stack<BasicBlock *> sorted_results;
 	    std::vector<bool> visited;
 	    //Hold whether the mark is temporary or permanent
 	    std::vector<std::string> mark_type;
@@ -149,12 +149,13 @@ namespace {
 	    
 	    // initialize visited vector to false
 	    //initialize mark type vector to empty string
-	    for (int i = 0; i < innermost_loop.size(); i++){
-	        visited[i] = false;
-	        mark_type[i]="";
+	    for (int i = 0; i < innermost_loop_vector.size(); i++){
+	        visited.push_back(false);
+	        mark_type.push_back("");
 	    }
 
 	    while(num_not_visited>0){
+	    	errs() << "Initial VisitBlock call- " << num_not_visited << '\n';
 	    	for(int i=0; i<innermost_loop.size(); i++){
 	    		if(!visited[i]){
 	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results);
@@ -162,6 +163,13 @@ namespace {
 	    	}
 	    }
 
+	    errs() << "Topological sort: {";
+	    while(!sorted_results.empty()){
+	    	BasicBlock* r=sorted_results.top();
+	    	errs() << r->getName() << ",";
+	    	sorted_results.pop();
+	    }
+	    errs() << "}" << '\n'; 
     }
 
 
@@ -174,7 +182,7 @@ namespace {
       return true; 
     }
 
-    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::vector<BasicBlock *> sorted_results){
+    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::stack<BasicBlock *> &sorted_results){
     	// if (getDomTree().dominates(sit->getTerminator(), &BB)){
 
     	/*
@@ -185,6 +193,7 @@ namespace {
 	        visit(m)
 	    mark n permanently
 	    add n to head of L*/
+	    errs() << "Entering VisitBlock call" << '\n';
 
 	    if(mark_type[i]=="P"){
 	    	return;
@@ -195,11 +204,28 @@ namespace {
 	    }
 	    mark_type[i]="T";
 
-	    succ_iterator end = succ_end(loop[i]);
-     for (succ_iterator sit = succ_begin(loop[i]);sit != end; ++sit){
+	    errs() << "Marked temporary" << '\n';
 
+	    succ_iterator end = succ_end(loop[i]);
+	    int j=i+1;
+     for (succ_iterator sit = succ_begin(loop[i]);sit != end; ++sit){
+     	//if this is not a back edge, then visit
+     	errs() << "Looping through successors" << '\n';
+     	if (!(getDomTree().dominates(sit->getTerminator(), loop[i]))){
+     		errs() << "Not a back edge, continue to call visitBlock" << '\n';
+     		visitBlock(j, visited, mark_type, loop, sorted_results);
+     		j++;
+     	}
 
     }
+
+errs() << "Marked permanent" << '\n';
+    mark_type[i]="P";
+    //insert at the top of the results
+    errs() << "Inserting to stack and decrementing num_not_visited" << '\n';
+    sorted_results.push(loop[i]);
+    num_not_visited--;
+    return;
 }
 
     bool runOnBasicBlock(BasicBlock &BB) {
