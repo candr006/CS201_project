@@ -122,10 +122,14 @@ namespace {
       //all loops with an is_innermost value of true at this point are innermost loops
     bool loop_exists=false;
     std::set<BasicBlock *> innermost_loop;
+    BasicBlock* innermost_loop_head;
+    BasicBlock* innermost_loop_tail;
     for(int i; i < is_innermost.size(); i++ ){
       	if(is_innermost[i]){
       		loop_exists=true;
       		innermost_loop=loop_vector[i];
+      		innermost_loop_head=std::get<0>(loop_head_tail[i]);
+      		innermost_loop_tail=std::get<1>(loop_head_tail[i]);
       		errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
       	}
     }
