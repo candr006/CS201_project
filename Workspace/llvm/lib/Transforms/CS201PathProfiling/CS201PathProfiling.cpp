@@ -137,6 +137,12 @@ namespace {
 	    std::vector<bool> visited;
 	    //Hold whether the mark is temporary or permanent
 	    std::vector<std::string> mark_type;
+	    std::vector<BasicBlock *> innermost_loop_vector;
+
+	    std::set<BasicBlock *>::iterator it;
+	    for (it=innermost_loop.begin(); it!=innermost_loop.end(); ++it){
+	    	innermost_loop_vector.push_back(*it);
+	    }
 
 	    //keep track of how many basic blocks have not been visited yet
 	    num_not_visited=innermost_loop.size();
@@ -151,7 +157,7 @@ namespace {
 	    while(num_not_visited>0){
 	    	for(int i=0; i<innermost_loop.size(); i++){
 	    		if(!visited[i]){
-	    			visitBlock(i, visited, mark_type, innermost_loop, sorted_results);
+	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results);
 	    		}
 	    	}
 	    }
@@ -168,7 +174,7 @@ namespace {
       return true; 
     }
 
-    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::set<BasicBlock *> loop, std::vector<BasicBlock *> sorted_results){
+    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::vector<BasicBlock *> sorted_results){
     	// if (getDomTree().dominates(sit->getTerminator(), &BB)){
 
     	/*
@@ -189,12 +195,12 @@ namespace {
 	    }
 	    mark_type[i]="T";
 
-	    succ_iterator end = succ_end(&loop[i]);
-      for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
-
+	    succ_iterator end = succ_end(loop[i]);
+     for (succ_iterator sit = succ_begin(loop[i]);sit != end; ++sit){
 
 
     }
+}
 
     bool runOnBasicBlock(BasicBlock &BB) {
       errs() << "BasicBlock: " << BB.getName() << '\n';
