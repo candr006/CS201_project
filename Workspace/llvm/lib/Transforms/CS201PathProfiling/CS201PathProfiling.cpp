@@ -46,6 +46,7 @@ namespace {
 
     std::vector<std::set<BasicBlock *> > loop_vector;
     std::vector<bool> is_innermost;
+    int num_not_visited=0;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -66,12 +67,6 @@ namespace {
  
     //----------------------------------
     bool doFinalization(Module &M) {
-    //all loops with an is_innermost value of true at this point are innermost loops
-      for(int i; i < is_innermost.size(); i++ ){
-      	if(is_innermost[i]){
-      		errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
-      	}
-      }
       errs() << "-------Finished BasicBlocksDemo----------\n";
  
       return false;
@@ -121,8 +116,84 @@ namespace {
 	    }
       }
 
+
+      //all loops with an is_innermost value of true at this point are innermost loops
+    bool loop_exists=false;
+    std::set<BasicBlock *> innermost_loop;
+    for(int i; i < is_innermost.size(); i++ ){
+      	if(is_innermost[i]){
+      		loop_exists=true;
+      		innermost_loop=loop_vector[i];
+      		errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
+      	}
+    }
+
+    if(!loop_exists){
+    	errs() <<  "Innermost Loop: {}"<< '\n' << "Edge values: {}" << '\n';
+    }
+    else{
+    //Get topological order of innermost loop
+	    std::vector<BasicBlock *> sorted_results;
+	    std::vector<bool> visited;
+	    //Hold whether the mark is temporary or permanent
+	    std::vector<std::string> mark_type;
+
+	    //keep track of how many basic blocks have not been visited yet
+	    num_not_visited=innermost_loop.size();
+	    
+	    // initialize visited vector to false
+	    //initialize mark type vector to empty string
+	    for (int i = 0; i < innermost_loop.size(); i++){
+	        visited[i] = false;
+	        mark_type[i]="";
+	    }
+
+	    while(num_not_visited>0){
+	    	for(int i=0; i<innermost_loop.size(); i++){
+	    		if(!visited[i]){
+	    			visitBlock(i, visited, mark_type, innermost_loop, sorted_results);
+	    		}
+	    	}
+	    }
+
+    }
+
+
+
+    //clear loop_vector and is_innermost vectors, each function will populate these
+    loop_vector.clear();
+    is_innermost.clear();
+
  
       return true; 
+    }
+
+    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::set<BasicBlock *> loop, std::vector<BasicBlock *> sorted_results){
+    	// if (getDomTree().dominates(sit->getTerminator(), &BB)){
+
+    	/*
+    	if n has a permanent mark then return
+	    if n has a temporary mark then stop (not a DAG)
+	    mark n temporarily
+	    for each node m with an edge from n to m do
+	        visit(m)
+	    mark n permanently
+	    add n to head of L*/
+
+	    if(mark_type[i]=="P"){
+	    	return;
+	    }
+	    if(mark_type[i]=="T"){
+	    	errs() << "Not a DAG! Stopping" << '\n';
+	    	return;
+	    }
+	    mark_type[i]="T";
+
+	    succ_iterator end = succ_end(&loop[i]);
+      for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
+
+
+
     }
 
     bool runOnBasicBlock(BasicBlock &BB) {
@@ -208,4 +279,3 @@ namespace {
 
 char CS201PathProfiling::ID = 0;
 static RegisterPass<CS201PathProfiling> X("pathProfiling", "CS201PathProfiling Pass", false, false);
-
