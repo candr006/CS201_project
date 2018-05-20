@@ -47,6 +47,8 @@ namespace {
     std::vector<std::set<BasicBlock *> > loop_vector;
     std::vector<bool> is_innermost;
     int num_not_visited=0;
+    std::map<std::string, int> basic_block_key_map;
+    std::vector<std::pair<BasicBlock*, BasicBlock*> > loop_head_tail;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -139,10 +141,14 @@ namespace {
 	    //Hold whether the mark is temporary or permanent
 	    std::vector<std::string> mark_type;
 	    std::vector<BasicBlock *> innermost_loop_vector;
+	    
 
 	    std::set<BasicBlock *>::iterator it;
+	    int k=0;
 	    for (it=innermost_loop.begin(); it!=innermost_loop.end(); ++it){
 	    	innermost_loop_vector.push_back(*it);
+	    	basic_block_key_map.insert ( std::pair<std::string,int>((innermost_loop_vector[k])->getName().str(),k) );
+	    	k++;
 	    }
 
 	    //keep track of how many basic blocks have not been visited yet
@@ -184,9 +190,10 @@ namespace {
 
 
 
-    //clear loop_vector and is_innermost vectors, each function will populate these
+    //clear global variables, each function will populate these
     loop_vector.clear();
     is_innermost.clear();
+    basic_block_key_map.clear();
 
  
       return true; 
@@ -217,15 +224,18 @@ namespace {
 	    errs() << "Marked temporary" << '\n';
 
 	    succ_iterator end = succ_end(loop[i]);
-	    int j=i+1;
+
      for (succ_iterator sit = succ_begin(loop[i]);sit != end; ++sit){
      	//if this is not a back edge, then visit
-     	errs() << "Looping through successors" << '\n';
-     	if (!(getDomTree().dominates(sit->getTerminator(), loop[i]))){
-     		errs() << "Not a back edge, continue to call visitBlock" << '\n';
-     		visitBlock(j, visited, mark_type, loop, sorted_results);
-     		j++;
-     	}
+     	errs() << "Looping through successors of " << (loop[i])->getName() << '\n';
+     		int j= basic_block_key_map[sit->getName().str()];
+     		succ_iterator end_j = succ_end(loop[j]);
+		//for (succ_iterator sit2 = succ_begin(loop[j]);sit2 != end_j; ++sit2){
+	     //	 if (!(getDomTree().dominates(sit2->getTerminator(), loop[j]))){
+	     	 	errs() << "Not a back edge, continue to call visitBlock" << '\n';
+	     		visitBlock(j, visited, mark_type, loop, sorted_results);
+	     	//}
+	     //}
 
     }
 
@@ -251,6 +261,8 @@ errs() << "Marked permanent" << '\n';
         //errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
 
         //found a back edge
+        //Loop Head: sit->getTerminator
+        //Loop Tail: &BB 
         if (getDomTree().dominates(sit->getTerminator(), &BB)){
         	std::stack<BasicBlock *> s;
         	std::set<BasicBlock *> loop;
@@ -275,7 +287,10 @@ errs() << "Marked permanent" << '\n';
       		//add loop to loop vector
       			loop_vector.push_back(loop);
       			is_innermost.push_back(true);
-
+      			BasicBlock * head=(*sit);
+      			BasicBlock * tail= &BB;
+  				std::pair <BasicBlock*, BasicBlock*> head_tail (head,tail);      			
+  				loop_head_tail.push_back(head_tail);
         }
 
 
