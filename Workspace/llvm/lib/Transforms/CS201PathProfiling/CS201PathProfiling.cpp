@@ -49,6 +49,8 @@ namespace {
     int num_not_visited=0;
     std::map<std::string, int> basic_block_key_map;
     std::vector<std::pair<BasicBlock*, BasicBlock*> > loop_head_tail;
+    BasicBlock* innermost_loop_head;
+    BasicBlock* innermost_loop_tail;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -122,14 +124,13 @@ namespace {
       //all loops with an is_innermost value of true at this point are innermost loops
     bool loop_exists=false;
     std::set<BasicBlock *> innermost_loop;
-    BasicBlock* innermost_loop_head;
-    BasicBlock* innermost_loop_tail;
     for(int i; i < is_innermost.size(); i++ ){
       	if(is_innermost[i]){
       		loop_exists=true;
       		innermost_loop=loop_vector[i];
       		innermost_loop_head=std::get<0>(loop_head_tail[i]);
       		innermost_loop_tail=std::get<1>(loop_head_tail[i]);
+
       		errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
       	}
     }
@@ -140,6 +141,7 @@ namespace {
     else{
     //Get topological order of innermost loop
 	    std::stack<BasicBlock *> sorted_results;
+	    std::vector<BasicBlock *> sorted_results2;
 	    std::vector<BasicBlock *> reversed_results;
 	    std::vector<bool> visited;
 	    //Hold whether the mark is temporary or permanent
@@ -169,17 +171,16 @@ namespace {
 	    	errs() << "Initial VisitBlock call- " << num_not_visited << '\n';
 	    	for(int i=0; i<innermost_loop.size(); i++){
 	    		if(!visited[i]){
-	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results);
+	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results, sorted_results2);
 	    		}
 	    	}
 	    }
 
 	    errs() << "Topological sort: {";
-	    while(!sorted_results.empty()){
-	    	BasicBlock* r=sorted_results.top();
-	    	errs() << r->getName() << ",";
-	    	reversed_results.push_back(r);
-	    	sorted_results.pop();
+
+	    for(int i=0; i<sorted_results2.size(); i++){
+	    	errs() << (sorted_results2[i])->getName() << ",";
+	    	reversed_results.push_back(sorted_results2[i]);
 	    }
 	    errs() << "}" << '\n'; 
 
@@ -203,51 +204,33 @@ namespace {
       return true; 
     }
 
-    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::stack<BasicBlock *> &sorted_results){
-    	// if (getDomTree().dominates(sit->getTerminator(), &BB)){
-
-    	/*
-    	if n has a permanent mark then return
-	    if n has a temporary mark then stop (not a DAG)
-	    mark n temporarily
-	    for each node m with an edge from n to m do
-	        visit(m)
-	    mark n permanently
-	    add n to head of L*/
-	    errs() << "Entering VisitBlock call" << '\n';
+    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::stack<BasicBlock *> &sorted_results, std::vector<BasicBlock*>&sorted_results2){
+    	//Recursive DFS
 
 	    if(mark_type[i]=="P"){
 	    	return;
 	    }
 	    if(mark_type[i]=="T"){
-	    	errs() << "Not a DAG! Stopping" << '\n';
 	    	return;
 	    }
 	    mark_type[i]="T";
 
-	    errs() << "Marked temporary" << '\n';
-
 	    succ_iterator end = succ_end(loop[i]);
 
      for (succ_iterator sit = succ_begin(loop[i]);sit != end; ++sit){
+ 		//push visited block onto vector
+     	if (!(std::find(sorted_results2.begin(), sorted_results2.end(), loop[i]) != sorted_results2.end())){
+     		sorted_results2.push_back(loop[i]);
+     	}
      	//if this is not a back edge, then visit
-     	errs() << "Looping through successors of " << (loop[i])->getName() << '\n';
-     		int j= basic_block_key_map[sit->getName().str()];
-     		succ_iterator end_j = succ_end(loop[j]);
-		//for (succ_iterator sit2 = succ_begin(loop[j]);sit2 != end_j; ++sit2){
-	     //	 if (!(getDomTree().dominates(sit2->getTerminator(), loop[j]))){
-	     	 	errs() << "Not a back edge, continue to call visitBlock" << '\n';
-	     		visitBlock(j, visited, mark_type, loop, sorted_results);
-	     	//}
-	     //}
+     	int j= basic_block_key_map[sit->getName().str()];
+     	if (loop[j]!=innermost_loop_head){
+     		visitBlock(j, visited, mark_type, loop, sorted_results, sorted_results2);	
+     	}
 
     }
 
-errs() << "Marked permanent" << '\n';
     mark_type[i]="P";
-    //insert at the top of the results
-    errs() << "Inserting to stack and decrementing num_not_visited" << '\n';
-    sorted_results.push(loop[i]);
     num_not_visited--;
     return;
 }
@@ -262,7 +245,6 @@ errs() << "Marked permanent" << '\n';
 
       succ_iterator end = succ_end(&BB);
       for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
-        //errs() << "Successor to "+BB.getName()+": " << sit->getName()<< '\n';
 
         //found a back edge
         //Loop Head: sit->getTerminator
