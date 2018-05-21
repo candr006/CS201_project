@@ -174,21 +174,14 @@ namespace {
 	    	}
 	    }
 
-	    errs() << "Topological sort: {";
-
 	    for(int i=0; i<sorted_results2.size(); i++){
-	    	errs() << (sorted_results2[i])->getName() << ",";
 	    	reversed_results.push_back(sorted_results2[i]);
 	    }
-	    errs() << "}" << '\n'; 
-
 	    std::reverse(reversed_results.begin(),reversed_results.end());
-	   	errs() << "Reverse Topological sort: {";
 
-	   	for(int i=0; i<reversed_results.size(); i++){
-	   		errs() << reversed_results[i]->getName() << ",";
-	   	}
-	    errs() << "}" << '\n'; 
+	    errs() << printBBVector(sorted_results2,"Topological Sort") << '\n';
+	    errs() << printBBVector(reversed_results, "Reversed Topological Sort") << '\n';
+
     }
 
 
@@ -292,6 +285,18 @@ namespace {
   		std::string comma="";
   		for(std::set<BasicBlock *>::iterator it=loop.begin(); it!=loop.end(); ++it){
   			formatted_loop=(formatted_loop+(comma+((*it)->getName()).str()));
+  			comma=",";
+  		}
+  		formatted_loop+="}";
+
+  		return formatted_loop;
+    }
+
+    std::string printBBVector(std::vector<BasicBlock*> v, std::string label){
+    	std::string formatted_loop=label+": {";
+  		std::string comma="";
+  		for(int i=0; i<v.size(); i++){
+  			formatted_loop=(formatted_loop+(comma+(v[i]->getName().str())));
   			comma=",";
   		}
   		formatted_loop+="}";
