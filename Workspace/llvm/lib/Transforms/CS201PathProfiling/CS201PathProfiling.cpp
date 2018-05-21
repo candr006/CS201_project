@@ -44,10 +44,13 @@ namespace {
     GlobalVariable *BasicBlockPrintfFormatStr = NULL;
     Function *printf_func = NULL;
 
+//Global variables these should be cleared after function run
     std::vector<std::set<BasicBlock *> > loop_vector;
     std::vector<bool> is_innermost;
     int num_not_visited=0;
     std::map<std::string, int> basic_block_key_map;
+    std::map<std::string, int> num_paths;
+    std::map<std::string, int> ball_larus_edge_values;
     std::vector<std::pair<BasicBlock*, BasicBlock*> > loop_head_tail;
     BasicBlock* innermost_loop_head;
     BasicBlock* innermost_loop_tail;
@@ -181,6 +184,54 @@ namespace {
 
 	    errs() << printBBVector(sorted_results2,"Topological Sort") << '\n';
 	    errs() << printBBVector(reversed_results, "Reversed Topological Sort") << '\n';
+
+
+	    //Assign each edge a unique value
+	    /*for each vertex v in rev. top. order {
+			if v is a leaf vertex { // no successors
+				NumPaths(v) = 1;
+			} else {
+				NumPaths(v) = 0;
+				for each edge e = v->w {
+					Val(e) = NumPaths(v);
+					NumPaths(v) += NumPaths(w);
+				}
+			}
+		}*/
+	    for(int i=0; i<reversed_results.size(); i++){
+	    	int num_successors=0;
+	    	succ_iterator end=succ_end(reversed_results[i]);
+			for (succ_iterator sit = succ_begin(reversed_results[i]);sit != end; ++sit){
+				if(innermost_loop.find(*sit)!=innermost_loop.end()){
+			     	if ((*sit)!=innermost_loop_head){
+			     		num_successors++;
+			     	}
+			    }
+			}
+			if(num_successors<1){
+				num_paths.insert(std::pair<std::string,int>(((reversed_results[i])->getName()).str(),1) );
+			}else{
+				num_paths.insert(std::pair<std::string,int>(((reversed_results[i])->getName()).str(),0) );
+				succ_iterator end=succ_end(reversed_results[i]);
+				for (succ_iterator sit = succ_begin(reversed_results[i]);sit != end; ++sit){
+					if(innermost_loop.find(*sit)!=innermost_loop.end()){
+				     	if ((*sit)!=innermost_loop_head){
+				     		std::string edge_name=((reversed_results[i])->getName().str())+" -> "+(sit->getName()).str();
+				     		int edge_val= num_paths[((reversed_results[i])->getName()).str()];
+				     		ball_larus_edge_values.insert(std::pair<std::string,int>(edge_name,edge_val));
+				     	}
+				    }
+				}
+
+			}
+	    }
+
+	    //Print edge values
+	 errs() << "Edge Values: {" << '\n';
+	 for (std::map<std::string,int>::iterator it=ball_larus_edge_values.begin(); it!=ball_larus_edge_values.end(); ++it){
+    	errs() << " " << it->first << " => " << it->second << '\n';
+    }
+    errs() << "}" << '\n';
 
     }
 
