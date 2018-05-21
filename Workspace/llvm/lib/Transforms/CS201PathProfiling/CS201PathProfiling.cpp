@@ -140,8 +140,7 @@ namespace {
     }
     else{
     //Get topological order of innermost loop
-	    std::stack<BasicBlock *> sorted_results;
-	    std::vector<BasicBlock *> sorted_results2;
+    	std::vector<BasicBlock *> sorted_results2;
 	    std::vector<BasicBlock *> reversed_results;
 	    std::vector<bool> visited;
 	    //Hold whether the mark is temporary or permanent
@@ -168,10 +167,9 @@ namespace {
 	    }
 
 	    while(num_not_visited>0){
-	    	errs() << "Initial VisitBlock call- " << num_not_visited << '\n';
 	    	for(int i=0; i<innermost_loop.size(); i++){
 	    		if(!visited[i]){
-	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results, sorted_results2);
+	    			visitBlock(i, visited, mark_type, innermost_loop_vector, sorted_results2);
 	    		}
 	    	}
 	    }
@@ -204,7 +202,7 @@ namespace {
       return true; 
     }
 
-    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop, std::stack<BasicBlock *> &sorted_results, std::vector<BasicBlock*>&sorted_results2){
+    void visitBlock(int i, std::vector<bool> &visited, std::vector<std::string> &mark_type, std::vector<BasicBlock *> loop,std::vector<BasicBlock*>&sorted_results2){
     	//Recursive DFS
 
 	    if(mark_type[i]=="P"){
@@ -225,7 +223,7 @@ namespace {
      	//if this is not a back edge, then visit
      	int j= basic_block_key_map[sit->getName().str()];
      	if (loop[j]!=innermost_loop_head){
-     		visitBlock(j, visited, mark_type, loop, sorted_results, sorted_results2);	
+     		visitBlock(j, visited, mark_type, loop, sorted_results2);	
      	}
 
     }
