@@ -212,9 +212,9 @@ namespace {
 
 			std::string v_name=((reversed_results[i])->getName()).str();
 			if(num_successors<1){
-				num_paths.insert(std::pair<std::string,int>(v_name,1) );
+				num_paths[v_name]=1;
 			}else{
-				num_paths.insert(std::pair<std::string,int>(v_name,0) );
+				num_paths[v_name]=0;
 				succ_iterator end=succ_end(reversed_results[i]);
 				int edge_val= 0;
 				for (succ_iterator sit = succ_begin(reversed_results[i]);sit != end; ++sit){
@@ -223,7 +223,7 @@ namespace {
 				     	if ((*sit)!=innermost_loop_head){
 				     		std::string edge_name=v_name+" -> "+w_name;
 				     		edge_val=num_paths[v_name];
-				     		ball_larus_edge_values.insert(std::pair<std::string,int>(edge_name,edge_val));
+				     		ball_larus_edge_values[edge_name]=edge_val;
 				     		num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
 				     	}
 				    }
