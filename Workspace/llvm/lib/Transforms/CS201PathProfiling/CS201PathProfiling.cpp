@@ -322,15 +322,13 @@ namespace {
       errs() << "}" << '\n';
 
     }
-
-
-    //basic_block_key_map.clear();
   }
 
 
     //clear global variables, each function will populate these
     is_innermost.clear();
     loop_vector.clear();
+    basic_block_key_map.clear();
 
  
       return true; 
