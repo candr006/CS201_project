@@ -250,6 +250,16 @@ namespace {
       }
 
 
+      //Initialize increment code for chords
+    //Use map for chord increments
+    std::map<MaximumSpanningTree<BasicBlock>::Edge, int> increment;
+    for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
+        increment[*it]=0;
+    }
+    //DFS(0,root,null) goes here
+
+
+    //next loop through chords goes here
 
 
     //Step 2 of BL
@@ -364,7 +374,7 @@ namespace {
     return;
 }
 
-void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std::set<BasicBlock*> innermost_loop, std::set<MaximumSpanningTree<BasicBlock>::Edge> chords){
+void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std::set<BasicBlock*> innermost_loop, std::set<MaximumSpanningTree<BasicBlock>::Edge> chords, std::map<MaximumSpanningTree<BasicBlock>::Edge,int> &increment){
   for(pred_iterator pit =pred_begin(v); pit!=pred_end(v); ++pit){
       MaximumSpanningTree<BasicBlock>::Edge f(*pit,v);
       if(innermost_loop.find(*pit)!=innermost_loop.end() && (f!=e)){
@@ -374,7 +384,7 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
             Events=ew_vector[i].second;
           }
         }
-        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords);
+        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment);
       }
   }
 
@@ -387,14 +397,20 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
             Events=ew_vector[i].second;
           }
         }
-        DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords);
+        DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment);
       }
   }
 
   //loop through chords std::set<MaximumSpanningTree<BasicBlock>::Edge> chords;
   for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
+    //Increment (f) = Increment(f) + Dir( e,f ) *events
     //v1=src(f) -> (*it).first;
     //v2=tgt(f) -> (*it).second;
+    MaximumSpanningTree<BasicBlock>::Edge f=(*it);
+
+    //This needs to be done twice: once for incoming, and once for outgoing vertex??
+    increment[f]=increment[f]+(Dir(e,f)*events);
+    increment[f]=increment[f]+(Dir(e,f)*events);
 
 
   }
