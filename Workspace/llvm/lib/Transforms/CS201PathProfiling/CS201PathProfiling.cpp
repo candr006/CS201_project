@@ -138,9 +138,7 @@ namespace {
           innermost_loop_tail=std::get<1>(loop_head_tail[i]);
 
           errs() <<  printLoop(loop_vector[i], "Innermost Loop")<< '\n';
-        }
-    //}
-    else{
+
     //Get topological order of innermost loop
       std::vector<BasicBlock *> sorted_results2;
       std::vector<BasicBlock *> reversed_results;
