@@ -257,10 +257,20 @@ namespace {
         increment[*it]=0;
     }
     //DFS(0,root,null) goes here
-
+    //NULL not accepted for edge so passing in an empty edge
+    MaximumSpanningTree<BasicBlock>::Edge null_edge;
+    DFS(0,innermost_loop_head,null_edge, innermost_loop, chords, increment);
 
     //next loop through chords goes here
-
+    for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
+        int Events=0;
+        for(int i=0; i<ew_vector.size(); i++){
+          if(ew_vector[i].first==(*it)){
+            Events=ew_vector[i].second;
+          }
+        }
+        increment[*it]=increment[*it]+Events;
+    }
 
     //Step 2 of BL
     /* Register initialization code // 
