@@ -252,14 +252,15 @@ namespace {
 
       //Initialize increment code for chords
     //Use map for chord increments
+
     std::map<MaximumSpanningTree<BasicBlock>::Edge, int> increment;
     for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
         increment[*it]=0;
     }
     //DFS(0,root,null) goes here
     //NULL not accepted for edge so passing in an empty edge
-    MaximumSpanningTree<BasicBlock>::Edge null_edge;
-    DFS(0,innermost_loop_head,null_edge, innermost_loop, chords, increment);
+    MaximumSpanningTree<BasicBlock>::Edge null_edge (NULL,NULL);
+    DFS(0,innermost_loop_head,null_edge, innermost_loop, chords, increment, innermost_loop_tail);
 
     //next loop through chords goes here
     for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
@@ -384,20 +385,31 @@ namespace {
     return;
 }
 
-void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std::set<BasicBlock*> innermost_loop, std::set<MaximumSpanningTree<BasicBlock>::Edge> chords, std::map<MaximumSpanningTree<BasicBlock>::Edge,int> &increment){
+void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std::set<BasicBlock*> innermost_loop, 
+	std::set<MaximumSpanningTree<BasicBlock>::Edge> chords, std::map<MaximumSpanningTree<BasicBlock>::Edge,int> &increment,
+	BasicBlock* innermost_loop_tail){
+  //errs() << "first for loop " << '\n';
   for(pred_iterator pit =pred_begin(v); pit!=pred_end(v); ++pit){
+  	//errs() << "for loop" << '\n';
       MaximumSpanningTree<BasicBlock>::Edge f(*pit,v);
-      if(innermost_loop.find(*pit)!=innermost_loop.end() && (f!=e)){
+      if(innermost_loop.find(*pit)!=innermost_loop.end() && (*pit)!=innermost_loop_tail){
+      	errs() << "condition 1 pit: " << (*pit)->getName() << '\n';
+      	if((f!=e)){
+      		errs() << "f: " << f.first->getName() << "-> "<< f.second->getName() << '\n';
+      		errs() << "loop tail: " << innermost_loop_tail->getName() << '\n';
+
+      	
         int Events=0;
         for(int i=0; i<ew_vector.size(); i++){
           if(ew_vector[i].first==f){
             Events=ew_vector[i].second;
           }
         }
-        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment);
-      }
+        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment, innermost_loop_tail);
   }
-
+}
+  }
+errs() << "HERE!" << '\n';
   for(succ_iterator sit =succ_begin(v); sit!=succ_end(v); ++sit){
       MaximumSpanningTree<BasicBlock>::Edge f(*sit,v);
       if(innermost_loop.find(*sit)!=innermost_loop.end() && (f!=e)){
@@ -407,7 +419,7 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
             Events=ew_vector[i].second;
           }
         }
-        DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment);
+       // DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment, innermost_loop_tail);
       }
   }
 
