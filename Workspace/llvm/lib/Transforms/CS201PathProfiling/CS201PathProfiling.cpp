@@ -56,6 +56,7 @@ namespace {
     BasicBlock* innermost_loop_head;
     BasicBlock* innermost_loop_tail;
     MaximumSpanningTree<BasicBlock>::EdgeWeights ew_vector;
+    int debug_dfs=1;
  
     //----------------------------------
     bool doInitialization(Module &M) {
@@ -214,7 +215,8 @@ namespace {
         for (succ_iterator sit = succ_begin(reversed_results[i]);sit != end; ++sit){
           if(innermost_loop.find(*sit)!=innermost_loop.end()){
             std::string w_name=(sit->getName()).str();
-              if ((*sit)!=innermost_loop_head){
+            errs() << "v: " << v_name << " w: " << w_name << '\n';
+              //if ((*sit)!=innermost_loop_head){
                 std::string edge_name=v_name+" -> "+w_name;
                 edge_val=num_paths[v_name];
 
@@ -228,7 +230,7 @@ namespace {
 
                 ball_larus_edge_values[edge_name]=edge_val;
                 num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
-              }
+              //}
             }
         }
       }
@@ -238,15 +240,21 @@ namespace {
 
       std::set<MaximumSpanningTree<BasicBlock>::Edge> edge_set;
       for(std::vector<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=mst.begin(); it!=mst.end();++it){
+      	if((*it).first->getName()=="b6" && (*it).second->getName()=="b1"){
+      		errs() << "back edge is in mst" << '\n';
+      	}
           edge_set.insert(*it);
+      	
       }
 
       //now identify the chords
       std::set<MaximumSpanningTree<BasicBlock>::Edge> chords;
       for(MaximumSpanningTree<BasicBlock>::EdgeWeights::iterator it=ew_vector.begin();it!=ew_vector.end();++it){
           if(edge_set.find(it->first)==edge_set.end()){
+          	errs() << "chord: "<< it->first.first->getName() << " -> " << it->first.second->getName() << '\n';
             chords.insert(it->first);
           }
+
       }
 
 
@@ -260,7 +268,7 @@ namespace {
     //DFS(0,root,null) goes here
     //NULL not accepted for edge so passing in an empty edge
     MaximumSpanningTree<BasicBlock>::Edge null_edge (NULL,NULL);
-    DFS(0,innermost_loop_head,null_edge, innermost_loop, chords, increment, innermost_loop_tail);
+    DFS(0,innermost_loop_head,null_edge, innermost_loop, chords, increment, innermost_loop_tail, innermost_loop_head);
 
     //next loop through chords goes here
     for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
@@ -387,58 +395,62 @@ namespace {
 
 void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std::set<BasicBlock*> innermost_loop, 
 	std::set<MaximumSpanningTree<BasicBlock>::Edge> chords, std::map<MaximumSpanningTree<BasicBlock>::Edge,int> &increment,
-	BasicBlock* innermost_loop_tail){
-  //errs() << "first for loop " << '\n';
-  for(pred_iterator pit =pred_begin(v); pit!=pred_end(v); ++pit){
-  	//errs() << "for loop" << '\n';
-      MaximumSpanningTree<BasicBlock>::Edge f(*pit,v);
-      if(innermost_loop.find(*pit)!=innermost_loop.end() && (*pit)!=innermost_loop_tail){
-      	errs() << "condition 1 pit: " << (*pit)->getName() << '\n';
-      	if((f!=e)){
-      		errs() << "f: " << f.first->getName() << "-> "<< f.second->getName() << '\n';
-      		errs() << "loop tail: " << innermost_loop_tail->getName() << '\n';
+	BasicBlock* innermost_loop_tail, BasicBlock* innermost_loop_head){
 
-      	
-        int Events=0;
-        for(int i=0; i<ew_vector.size(); i++){
-          if(ew_vector[i].first==f){
-            Events=ew_vector[i].second;
-          }
-        }
-        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment, innermost_loop_tail);
+//if(debug_dfs<50){
+  for(pred_iterator pit =pred_begin(v); pit!=pred_end(v); ++pit){
+      MaximumSpanningTree<BasicBlock>::Edge f(*pit,v);
+      if(innermost_loop.find(*pit)!=innermost_loop.end() && (*pit)!=innermost_loop_tail && (chords.find(f)==chords.end())){
+      	if((f!=e)){
+	        int Events=0;
+	        for(int i=0; i<ew_vector.size(); i++){
+	          if(ew_vector[i].first==f){
+	            Events=ew_vector[i].second;
+	          }
+	        }
+	        debug_dfs++;
+	        errs() << "Dir+Events: "<<(Dir(e,f)*events)+Events << " pred: " <<(*pit)->getName() << " f.first: " << f.first->getName() << " f.second " << f.second->getName()<< '\n';
+	        DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment, innermost_loop_tail, innermost_loop_head);
+  		}
+	   }
   }
-}
-  }
-errs() << "HERE!" << '\n';
+
   for(succ_iterator sit =succ_begin(v); sit!=succ_end(v); ++sit){
-      MaximumSpanningTree<BasicBlock>::Edge f(*sit,v);
-      if(innermost_loop.find(*sit)!=innermost_loop.end() && (f!=e)){
+      MaximumSpanningTree<BasicBlock>::Edge f(v,*sit);
+      if((innermost_loop.find(*sit)!=innermost_loop.end()) && (f!=e) && ((*sit)!=innermost_loop_head) && (chords.find(f)==chords.end())){
+      	errs() << "first if statement" << '\n';
         int Events=0;
         for(int i=0; i<ew_vector.size(); i++){
+        	errs() << "ew vector loop"  << '\n';
           if(ew_vector[i].first==f){
             Events=ew_vector[i].second;
+            break;
           }
         }
-       // DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment, innermost_loop_tail);
+        debug_dfs++;
+       errs() << "Dir+Events: "<<(Dir(e,f)*events)+Events << " succ: " <<(*sit)->getName() << " f.first: " << f.first->getName() << " f.second " << f.second->getName()<< '\n';
+
+        DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment, innermost_loop_tail, innermost_loop_head);
       }
   }
 
   //loop through chords std::set<MaximumSpanningTree<BasicBlock>::Edge> chords;
   for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
-    //Increment (f) = Increment(f) + Dir( e,f ) *events
-    //v1=src(f) -> (*it).first;
-    //v2=tgt(f) -> (*it).second;
+  	errs() << "Increment for loop for v: " << v->getName() << '\n';
+    const BasicBlock* v1=(*it).first;
+    const BasicBlock* v2=(*it).second;
     MaximumSpanningTree<BasicBlock>::Edge f=(*it);
 
-    //This needs to be done twice: once for incoming, and once for outgoing vertex??
-    increment[f]=increment[f]+(Dir(e,f)*events);
-    increment[f]=increment[f]+(Dir(e,f)*events);
+    if(v==v1 || v==v2){
+    	increment[f]=increment[f]+(Dir(e,f)*events);
+    	errs() << "Increment[f] f.first: " <<f.first->getName() << " f.second: "<<f.second->getName() <<" "<< increment[f] << '\n';
 
+    }
 
   }
 
 
-
+//}
   return;
 }
 
