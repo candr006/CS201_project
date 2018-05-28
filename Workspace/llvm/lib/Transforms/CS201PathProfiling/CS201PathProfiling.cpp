@@ -193,6 +193,8 @@ for(int i; i < is_innermost.size(); i++ ){
       }
     }*/
    // MaximumSpanningTree<BasicBlock>::EdgeWeights ew_vector;
+      int num_loop_exits=0;
+      std::map<BasicBlock*, int> loop_exit_edges;
       for(int i=0; i<reversed_results.size(); i++){
         int num_successors=0;
         succ_iterator end=succ_end(reversed_results[i]);
@@ -206,6 +208,8 @@ for(int i; i < is_innermost.size(); i++ ){
 
       
       std::string v_name=((reversed_results[i])->getName()).str();
+      //keep a count of how many loop exits there are per vertex
+      
       if(num_successors<1){
         num_paths[v_name]=1;
       }else{
@@ -229,11 +233,64 @@ for(int i; i < is_innermost.size(); i++ ){
                 ball_larus_edge_values[edge_name]=edge_val;
                 num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
               }
+            }else{
+            	num_loop_exits++;
+            	//create a set of loop exit edges
+            	if(loop_exit_edges.find(reversed_results[i])!=loop_exit_edges.end()){
+            		loop_exit_edges[reversed_results[i]]++;
+            	}else{
+            		loop_exit_edges[reversed_results[i]]=1;
+            	}
+
             }
         }
       }
       }
 
+	std::reverse(sorted_results2.begin(),sorted_results2.end());
+	errs() << printBBVector(sorted_results2,"Topological Sort") << '\n';
+	//Approx. edge frequencies
+	int loop_mult=10;
+	double loop_exit_weight=(1.0/num_loop_exits);
+    std::map<BasicBlock*, int> vertex_weight;
+	 std::map<MaximumSpanningTree<BasicBlock>::Edge, int> apprx_edge_weight;
+	//initialize loop head vert weight to 1* loop multiplier
+	
+	for(int i=0; i<sorted_results2.size(); i++){
+		double w_e;
+		if(loop_exit_edges.find(sorted_results2[i])!=loop_exit_edges.end()){
+			w_e=(loop_exit_weight*loop_exit_edges[sorted_results2[i]]);
+		}else{
+			//no exit edges
+			w_e=0;
+		}
+
+		vertex_weight[sorted_results2[i]]=0;
+		if(sorted_results2[i]!=innermost_loop_head){
+
+			for (pred_iterator pit = pred_begin(sorted_results2[i]);pit != pred_end(sorted_results2[i]); ++pit){
+				if(innermost_loop.find(*pit)!=innermost_loop.end()){
+					//basic block is in the loop 
+					MaximumSpanningTree<BasicBlock>::Edge e(*pit,sorted_results2[i]);
+					vertex_weight[sorted_results2[i]]=vertex_weight[sorted_results2[i]]+apprx_edge_weight[e];
+						
+				}
+				
+			}
+		}else{
+			vertex_weight[innermost_loop_head]=1*loop_mult;
+		}
+
+		for (succ_iterator sit = succ_begin(sorted_results2[i]);sit != succ_end(sorted_results2[i]); ++sit){
+			double w= vertex_weight[sorted_results2[i]];
+			if(innermost_loop.find(*sit)!=innermost_loop.end()){
+				//basic block is in the loop 
+				MaximumSpanningTree<BasicBlock>::Edge out_edge(sorted_results2[i],*sit);
+				double n=(sorted_results2[i]->getTerminator()->getNumSuccessors() - loop_exit_edges[sorted_results2[i]]);
+				apprx_edge_weight[out_edge]=(w-w_e)/n;
+			}
+		}
+	}	
     std::string v_name=innermost_loop_tail->getName();
     std::string w_name=innermost_loop_head->getName();
     std::string edge_name=v_name+" -> "+w_name;
@@ -244,6 +301,9 @@ for(int i; i < is_innermost.size(); i++ ){
 
     ball_larus_edge_values[edge_name]=0;
     num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
+
+
+
 
 
       MaximumSpanningTree<BasicBlock> mst (ew_vector);
