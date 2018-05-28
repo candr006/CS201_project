@@ -37,6 +37,14 @@ namespace {
   }
 
   struct CS201PathProfiling : public DominatorTreeWrapperPass {
+  	// Page 7 of ball-larus algorithm
+  	struct MemCountContainer {
+  		int increment;
+  		bool includeR;
+  		MemCountContainer() : increment(0), includeR(false) {}
+  		MemCountContainer(int i, bool b) : increment(i), includeR(b) {}
+  	};
+
   static char ID;
   //CS201PathProfiling() : FunctionPass(ID) {}
   LLVMContext *Context;
@@ -56,6 +64,10 @@ namespace {
     BasicBlock* innermost_loop_head;
     BasicBlock* innermost_loop_tail;
     MaximumSpanningTree<BasicBlock>::EdgeWeights ew_vector;
+    std::map<MaximumSpanningTree<BasicBlock>::Edge, double> r_eq_path_instrumentation;
+    std::map<MaximumSpanningTree<BasicBlock>::Edge, double> r_plus_eq_path_instrumentation;
+    std::map<MaximumSpanningTree<BasicBlock>::Edge, struct MemCountContainer> count_path_instrumentation;
+
     int debug_dfs=1;
  
     //----------------------------------
@@ -325,10 +337,8 @@ for(int i; i < is_innermost.size(); i++ ){
       	  MaximumSpanningTree<BasicBlock>::Edge e(it->first);
       	  std::string edge_name=e.first->getName().str()+" -> "+e.second->getName().str();
       	  int bev=ball_larus_edge_values[edge_name];
-
-      	  //Reset edge weight
+      	  //Reset edge weight to original ball larus edge vals
       	  it->second=bev;
-      	  errs() << edge_name << ": " << bev << '\n';
 
           if(edge_set.find(it->first)==edge_set.end()){
           	errs() << "chord: "<< it->first.first->getName() << " -> " << it->first.second->getName() << '\n';
@@ -377,18 +387,21 @@ for(int i; i < is_innermost.size(); i++ ){
       BasicBlock * v= ws.top();
       ws.pop();
       for (succ_iterator sit = succ_begin(v);sit != succ_end(v); ++sit){
-        BasicBlock* w= (*sit);
-        MaximumSpanningTree<BasicBlock>::Edge e (v,w);
-        //if e is a chord edge
-        if(chords.find(e)!=chords.end()){
-          //
-        }
-        else if(v->getTerminator()->getNumSuccessors()==1){
-          ws.push(w);
-        }else{
-          //
-        }
-
+      	if(innermost_loop.find(*sit)!=innermost_loop.end()){
+	        BasicBlock* w= (*sit);
+	        MaximumSpanningTree<BasicBlock>::Edge e (v,w);
+	        //if e is a chord edge
+	        if(chords.find(e)!=chords.end()){
+	        	r_eq_path_instrumentation[e]=increment[e];
+	        	errs() << "req: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << r_eq_path_instrumentation[e] << '\n';
+	        }
+	        else if(v->getTerminator()->getNumSuccessors()==1){
+	          ws.push(w);
+	        }else{
+	        	r_eq_path_instrumentation[e]=0;
+	        	errs() << "req: "<<e.first->getName() <<" -> "<<e.second->getName() << " "  << r_eq_path_instrumentation[e] << '\n';
+	        }
+	    }
       }
     }
 
@@ -400,24 +413,46 @@ for(int i; i < is_innermost.size(); i++ ){
       ws.pop();
 
       for (pred_iterator pit = pred_begin(w);pit != pred_end(w); ++pit){
-        BasicBlock* v= (*pit);
-        MaximumSpanningTree<BasicBlock>::Edge e (v,w);
-        //if e is a chord edge
-        if(chords.find(e)!=chords.end()){
-          //
-        }
-        else if(v->getTerminator()->getNumSuccessors()==1){
-          ws.push(v);
-        }else{
-          //
-        }
-
+      	if(innermost_loop.find(*pit)!=innermost_loop.end()){
+	        BasicBlock* v= (*pit);
+	        MaximumSpanningTree<BasicBlock>::Edge e (v,w);
+	        //if e is a chord edge
+	        if(chords.find(e)!=chords.end()){
+	         if(r_eq_path_instrumentation[e]==increment[e]){
+	          	count_path_instrumentation[e]=MemCountContainer(increment[e],false);
+	          	errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].increment << '\n';
+	          }else{
+	      		count_path_instrumentation[e]=MemCountContainer(increment[e],true);
+	      		errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].increment << " " << count_path_instrumentation[e].includeR << '\n';
+	          }
+	        }
+	        else if(v->getTerminator()->getNumSuccessors()==1){
+	          ws.push(v);
+	        }else{
+	          count_path_instrumentation[e]=MemCountContainer(0,true);
+	          errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].includeR << '\n';
+	        }
+	    }
       }
 
     }
 
     //Register increment code
     //loop through uninstrumented chords
+    for(std::set<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=chords.begin(); it!=chords.end(); ++it){
+     	bool not_in_any_path_instrumentation=true;
+     	if(r_eq_path_instrumentation.find(*it)!=r_eq_path_instrumentation.end()){
+     		not_in_any_path_instrumentation=false;
+     	}
+     	if(count_path_instrumentation.find(*it)!=count_path_instrumentation.end()){
+     		not_in_any_path_instrumentation=false;
+     	}
+
+     	if(not_in_any_path_instrumentation){
+     		r_plus_eq_path_instrumentation[*it]=increment[*it];
+     		errs() << "r_plus_eq: " <<it->first->getName() <<" -> "<<it->second->getName() << " " << r_plus_eq_path_instrumentation[*it] << '\n';
+     	}
+    }
 
 
       //Print edge values
@@ -436,6 +471,9 @@ for(int i; i < is_innermost.size(); i++ ){
     is_innermost.clear();
     loop_vector.clear();
     basic_block_key_map.clear();
+    r_eq_path_instrumentation.clear();
+    count_path_instrumentation.clear();
+    r_plus_eq_path_instrumentation.clear();
 
  
       return true; 
