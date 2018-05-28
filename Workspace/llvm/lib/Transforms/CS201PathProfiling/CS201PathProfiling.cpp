@@ -221,15 +221,8 @@ for(int i; i < is_innermost.size(); i++ ){
             std::string w_name=(sit->getName()).str();
             errs() << "Node: " << v_name << " Successor: " << w_name << '\n';
               if ((*sit)!=innermost_loop_head){
-                std::string edge_name=v_name+" -> "+w_name;
+              	std::string edge_name=v_name+" -> "+w_name;
                 edge_val=num_paths[v_name];
-
-                //edge
-                MaximumSpanningTree<BasicBlock>::Edge e(reversed_results[i],*sit);
-                //edge weight
-                MaximumSpanningTree<BasicBlock>::EdgeWeight ew(e,edge_val);
-                ew_vector.push_back(ew);
-
                 ball_larus_edge_values[edge_name]=edge_val;
                 num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
               }
@@ -252,8 +245,8 @@ for(int i; i < is_innermost.size(); i++ ){
 	//Approx. edge frequencies
 	int loop_mult=10;
 	double loop_exit_weight=(1.0/num_loop_exits);
-    std::map<BasicBlock*, int> vertex_weight;
-	 std::map<MaximumSpanningTree<BasicBlock>::Edge, int> apprx_edge_weight;
+    std::map<BasicBlock*, double> vertex_weight;
+	 std::map<MaximumSpanningTree<BasicBlock>::Edge, double> apprx_edge_weight;
 	//initialize loop head vert weight to 1* loop multiplier
 	
 	for(int i=0; i<sorted_results2.size(); i++){
@@ -272,8 +265,7 @@ for(int i; i < is_innermost.size(); i++ ){
 				if(innermost_loop.find(*pit)!=innermost_loop.end()){
 					//basic block is in the loop 
 					MaximumSpanningTree<BasicBlock>::Edge e(*pit,sorted_results2[i]);
-					vertex_weight[sorted_results2[i]]=vertex_weight[sorted_results2[i]]+apprx_edge_weight[e];
-						
+					vertex_weight[sorted_results2[i]]=vertex_weight[sorted_results2[i]]+apprx_edge_weight[e];						
 				}
 				
 			}
@@ -286,24 +278,34 @@ for(int i; i < is_innermost.size(); i++ ){
 			if(innermost_loop.find(*sit)!=innermost_loop.end()){
 				//basic block is in the loop 
 				MaximumSpanningTree<BasicBlock>::Edge out_edge(sorted_results2[i],*sit);
-				double n=(sorted_results2[i]->getTerminator()->getNumSuccessors() - loop_exit_edges[sorted_results2[i]]);
+
+				double n=sorted_results2[i]->getTerminator()->getNumSuccessors();
+				if(loop_exit_edges.find(sorted_results2[i])!=loop_exit_edges.end()){
+					n=n-loop_exit_edges[sorted_results2[i]];
+				}
+				errs() << "w_e: "<< w_e << '\n';
+
 				apprx_edge_weight[out_edge]=(w-w_e)/n;
 			}
 		}
-	}	
+	}
+
+
+    for(std::map<MaximumSpanningTree<BasicBlock>::Edge,double>::iterator it=apprx_edge_weight.begin(); it!=apprx_edge_weight.end(); ++it){
+
+        MaximumSpanningTree<BasicBlock>::EdgeWeight ew((*it).first,(*it).second);
+        errs() << "Edge Weight: " << it->first.first->getName() << " -> " << it->first.second->getName() <<"= "<< it->second << '\n';
+        ew_vector.push_back(ew);
+    }
+
+
+// Add back edge to the ew_vector
     std::string v_name=innermost_loop_tail->getName();
     std::string w_name=innermost_loop_head->getName();
-    std::string edge_name=v_name+" -> "+w_name;
     MaximumSpanningTree<BasicBlock>::Edge e_be(innermost_loop_tail,innermost_loop_head);
     //edge weight
-    MaximumSpanningTree<BasicBlock>::EdgeWeight ew_be(e_be,0);
+    MaximumSpanningTree<BasicBlock>::EdgeWeight ew_be(e_be,1);
     ew_vector.push_back(ew_be);
-
-    ball_larus_edge_values[edge_name]=0;
-    num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
-
-
-
 
 
       MaximumSpanningTree<BasicBlock> mst (ew_vector);
@@ -320,6 +322,14 @@ for(int i; i < is_innermost.size(); i++ ){
       //now identify the chords
       std::set<MaximumSpanningTree<BasicBlock>::Edge> chords;
       for(MaximumSpanningTree<BasicBlock>::EdgeWeights::iterator it=ew_vector.begin();it!=ew_vector.end();++it){
+      	  MaximumSpanningTree<BasicBlock>::Edge e(it->first);
+      	  std::string edge_name=e.first->getName().str()+" -> "+e.second->getName().str();
+      	  int bev=ball_larus_edge_values[edge_name];
+
+      	  //Reset edge weight
+      	  it->second=bev;
+      	  errs() << edge_name << ": " << bev << '\n';
+
           if(edge_set.find(it->first)==edge_set.end()){
           	errs() << "chord: "<< it->first.first->getName() << " -> " << it->first.second->getName() << '\n';
             chords.insert(it->first);
