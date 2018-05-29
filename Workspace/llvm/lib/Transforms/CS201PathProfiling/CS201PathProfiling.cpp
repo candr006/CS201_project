@@ -185,9 +185,6 @@ namespace {
 
       for(auto &BB: F) {
         // Add the footer to Main's BB containing the return 0; statement BEFORE calling runOnBasicBlock
-        if(F.getName().equals("main") && isa<ReturnInst>(BB.getTerminator())) { // major hack?
-          addFinalPrintf(BB, Context, bbCounter, BasicBlockPrintfFormatStr, printf_func);
-        }
         runOnBasicBlock(BB);
       }
 
@@ -526,6 +523,8 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
       }
     }
 
+      //end of is_innermost[i] if loop - code above will be repeated for each innermost loop
+      ball_larus_edge_values.clear();
     }
   }
 
@@ -547,6 +546,7 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
       r_eq_path_instrumentation.clear();
       count_path_instrumentation.clear();
       r_plus_eq_path_instrumentation.clear();
+      ball_larus_edge_values.clear();
 
       return true; 
 }
@@ -1048,6 +1048,10 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
     }
 
     void addPathProfilePrints(Function &F, Function *printf_func) {
+      // Don't run if there are no paths to print
+      if (loopDetails.empty())
+        return;
+
       // Get exit block for function F (need for IRBuilder hack)
       BasicBlock* exitBlock = NULL;
       for(auto &B: F) {
