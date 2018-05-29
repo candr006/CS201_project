@@ -1,7 +1,7 @@
 /*
  * Authors: 
- * Claudia Andrade (candr006@ucr.edu)
- * Daniel Handojo (dhand002@ucr.edu)
+ * Claudia Andrade (candr006@ucr.edu) SID: 860891274
+ * Daniel Handojo (dhand002@ucr.edu) SID: 861129016
  * 
  */
 
