@@ -157,7 +157,7 @@ namespace {
       rVar = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, 
           ConstantInt::get(Type::getInt32Ty(*Context), 0), "rVar");
 
-      errs() << "Module: " << M.getName() << "\n";
+      //errs() << "Module: " << M.getName() << "\n";
  
       return true;
     }
@@ -214,8 +214,6 @@ namespace {
       }
       }
 
-    errs() << "Number of loops: " << is_innermost.size() << '\n';
-
       //all loops with an is_innermost value of true at this point are innermost loops
     if(loop_vector.size()<1){
       errs() <<  "Innermost Loop: {}"<< '\n' << "Edge values: {}" << '\n';
@@ -223,7 +221,6 @@ namespace {
 
 std::set<BasicBlock *> innermost_loop;
 for(unsigned int i = 0; i < is_innermost.size(); i++ ){
-  errs() << "Loop head " << i << ": " << loop_header_tail[i].first->getName() << '\n';
     if(is_innermost[i]){
       innermost_loop=loop_vector[i];
       innermost_loop_header=std::get<0>(loop_header_tail[i]);
@@ -268,7 +265,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
 
 
       reversed_results=sorted_results2;
-      errs() << printBBVector(sorted_results2,"Reverse Topological Sort") << '\n';
 
 
       //Ball Larus - Assign each path a unique value 
@@ -310,7 +306,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
           for (succ_iterator sit = succ_begin(reversed_results[i]);sit != end; ++sit){
             if(innermost_loop.find(*sit)!=innermost_loop.end()){
               std::string w_name=(sit->getName()).str();
-              errs() << "Node: " << v_name << " Successor: " << w_name << '\n';
                 if ((*sit)!=innermost_loop_header){
                   std::string edge_name=v_name+" -> "+w_name;
                   edge_val=num_paths[v_name];
@@ -335,7 +330,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
           num_paths[innermost_loop_header->getName().str()]));
 
   std::reverse(sorted_results2.begin(),sorted_results2.end());
-  errs() << printBBVector(sorted_results2,"Topological Sort") << '\n';
   //Approx. edge frequencies
   int loop_mult=10;
   double loop_exit_weight=(1.0/num_loop_exits);
@@ -377,7 +371,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
         if(loop_exit_edges.find(sorted_results2[i])!=loop_exit_edges.end()){
           n=n-loop_exit_edges[sorted_results2[i]];
         }
-        errs() << "w_e: "<< w_e << '\n';
 
         apprx_edge_weight[out_edge]=(w-w_e)/n;
       }
@@ -388,7 +381,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
     for(std::map<MaximumSpanningTree<BasicBlock>::Edge,double>::iterator it=apprx_edge_weight.begin(); it!=apprx_edge_weight.end(); ++it){
 
         MaximumSpanningTree<BasicBlock>::EdgeWeight ew((*it).first,(*it).second);
-        errs() << "Edge Weight: " << it->first.first->getName() << " -> " << it->first.second->getName() <<"= "<< it->second << '\n';
         ew_vector.push_back(ew);
     }
 
@@ -401,14 +393,19 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
     MaximumSpanningTree<BasicBlock>::EdgeWeight ew_be(e_be,1);
     ew_vector.push_back(ew_be);
 
+     //Print edge values
+   errs() << "Edge Values: {" << '\n';
+   for (std::map<std::string,int>::iterator it=ball_larus_edge_values.begin(); it!=ball_larus_edge_values.end(); ++it){
+      errs() << " " << it->first << " => " << it->second << '\n';
+
+    }
+    errs() << "}" << '\n';
+
 
       MaximumSpanningTree<BasicBlock> mst (ew_vector);
 
       std::set<MaximumSpanningTree<BasicBlock>::Edge> edge_set;
       for(std::vector<MaximumSpanningTree<BasicBlock>::Edge>::iterator it=mst.begin(); it!=mst.end();++it){
-        if((*it).first->getName()=="b6" && (*it).second->getName()=="b1"){
-          errs() << "back edge is in mst" << '\n';
-        }
           edge_set.insert(*it);
         
       }
@@ -423,7 +420,6 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
           it->second=bev;
 
           if(edge_set.find(it->first)==edge_set.end()){
-            errs() << "chord: "<< it->first.first->getName() << " -> " << it->first.second->getName() << '\n';
             chords.insert(it->first);
           }
 
@@ -475,13 +471,11 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
           //if e is a chord edge
           if(chords.find(e)!=chords.end()){
             r_eq_path_instrumentation[e]=increment[e];
-            errs() << "req: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << r_eq_path_instrumentation[e] << '\n';
           }
           else if(v->getTerminator()->getNumSuccessors()==1){
             ws.push(w);
           }else{
             r_eq_path_instrumentation[e]=0;
-            errs() << "req: "<<e.first->getName() <<" -> "<<e.second->getName() << " "  << r_eq_path_instrumentation[e] << '\n';
           }
       }
       }
@@ -502,17 +496,14 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
           if(chords.find(e)!=chords.end()){
            if(r_eq_path_instrumentation[e]==increment[e]){
               count_path_instrumentation[e]=MemCountContainer(increment[e],false);
-              errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].increment << '\n';
             }else{
             count_path_instrumentation[e]=MemCountContainer(increment[e],true);
-            errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].increment << " " << count_path_instrumentation[e].includeR << '\n';
             }
           }
           else if(v->getTerminator()->getNumSuccessors()==1){
             ws.push(v);
           }else{
             count_path_instrumentation[e]=MemCountContainer(0,true);
-            errs() << "count: " <<e.first->getName() <<" -> "<<e.second->getName() << " " << count_path_instrumentation[e].includeR << '\n';
           }
       }
       }
@@ -532,18 +523,8 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
 
       if(not_in_any_path_instrumentation){
         r_plus_eq_path_instrumentation[*it]=increment[*it];
-        errs() << "r_plus_eq: " <<it->first->getName() <<" -> "<<it->second->getName() << " " << r_plus_eq_path_instrumentation[*it] << '\n';
       }
     }
-
-
-      //Print edge values
-     errs() << "Edge Values: {" << '\n';
-     for (std::map<std::string,int>::iterator it=ball_larus_edge_values.begin(); it!=ball_larus_edge_values.end(); ++it){
-        errs() << " " << it->first << " => " << it->second << '\n';
-
-      }
-      errs() << "}" << '\n';
 
     }
   }
@@ -618,7 +599,6 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
             }
           }
           debug_dfs++;
-          //errs() << "Dir+Events: "<<(Dir(e,f)*events)+Events << " pred: " <<(*pit)->getName() << " f.first: " << f.first->getName() << " f.second " << f.second->getName()<< '\n';
           DFS((Dir(e,f)*events)+Events,(*pit),f, innermost_loop, chords, increment, innermost_loop_tail, innermost_loop_header);
       }
      }
@@ -627,17 +607,14 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
   for(succ_iterator sit =succ_begin(v); sit!=succ_end(v); ++sit){
       MaximumSpanningTree<BasicBlock>::Edge f(v,*sit);
       if((innermost_loop.find(*sit)!=innermost_loop.end()) && (f!=e) && ((*sit)!=innermost_loop_header) && (chords.find(f)==chords.end())){
-        //errs() << "first if statement" << '\n';
         int Events=0;
         for(unsigned int i=0; i<ew_vector.size(); i++){
-        //  errs() << "ew vector loop"  << '\n';
           if(ew_vector[i].first==f){
             Events=ew_vector[i].second;
             break;
           }
         }
         debug_dfs++;
-      // errs() << "Dir+Events: "<<(Dir(e,f)*events)+Events << " succ: " <<(*sit)->getName() << " f.first: " << f.first->getName() << " f.second " << f.second->getName()<< '\n';
 
         DFS((Dir(e,f)*events)+Events,(*sit),f, innermost_loop, chords, increment, innermost_loop_tail, innermost_loop_header);
       }
@@ -651,7 +628,6 @@ void DFS(int events, BasicBlock* v, MaximumSpanningTree<BasicBlock>::Edge e, std
 
     if(v==v1 || v==v2){
       increment[f]=increment[f]+(Dir(e,f)*events);
-      errs() << "Increment[f: " << f.first->getName() <<" -> " <<f.second->getName() <<"]= "<< increment[f] <<  '\n';
 
     }
 
@@ -914,11 +890,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
 
       setArrayToZeroes(pathIRB, loop.pathCntMem, loop.numPaths); // clear array
 
-      for (auto &memVar : count_path_instrumentation) {
-        errs() << "in count instr: " << memVar.first.first->getName() << ' ' 
-            << memVar.first.second->getName() << '\n';
-      }
-
       for (auto &BB : F) {
         std::string bbname = BB.getName().str();
 
@@ -942,7 +913,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
 
             // "count[Inc(e)]++" or "count[r+Inc(e)]++" or "count[r]++"
             if (count_path_instrumentation.find(e) != count_path_instrumentation.end()) {
-              errs() << "IN HERE" << '\n';
               Value* addAddr = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), 
                   count_path_instrumentation[e].increment), zeroAddr);
 
@@ -1060,9 +1030,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
       // gives the instructions to the new node 
       BasicBlock *newDstNode = currDstNode->splitBasicBlock(currDstNode->begin(), succName);
 
-      errs() << "In insertEdgeNode: " << srcNodeName
-          << ' ' << currDstNode->getName() << ' ' << newDstNode->getName() << '\n';
-
       // Fix predecessors to point to node still, not to edge
       pred_iterator end_pred_iterator = pred_end(currDstNode);
       for (pred_iterator pit = pred_begin(currDstNode);pit != end_pred_iterator; ++pit) {
@@ -1112,7 +1079,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
           // Get path counter
           Value *pathCntPtr = getArrayPtr(IRB, loop.pathCntMem, pathIdxVal);
           Value *pathCntVar = IRB.CreateLoad(pathCntPtr);  
-          errs() << "array name: " << loop.pathCntMem->getName() << '\n';
 
           addFinalPrintf3(*exitBlock, Context, blockIdxVal, pathIdxVal, 
               pathCntVar, pathFormatStr2, printf_func);
