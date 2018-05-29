@@ -60,8 +60,6 @@ namespace {
     static char ID;
     LLVMContext *Context;
 
-    GlobalVariable *bbCounter = NULL;
-    GlobalVariable *BasicBlockPrintfFormatStr = NULL;
     Function *printf_func = NULL;
 
     // For edge profiling
@@ -97,13 +95,9 @@ namespace {
     bool doInitialization(Module &M) {
       errs() << "\n---------Starting BasicBlockDemo---------\n";
       Context = &M.getContext();
-      bbCounter = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, 
-          ConstantInt::get(Type::getInt32Ty(*Context), 0), "bbCounter");
-      const char *finalPrintString = "BB Count: %d\n";
-      Constant *format_const = ConstantDataArray::getString(*Context, finalPrintString);
-      BasicBlockPrintfFormatStr = new GlobalVariable(M, llvm::ArrayType::get(llvm::IntegerType::get(*Context, 8), 
-          strlen(finalPrintString)+1), true, llvm::GlobalValue::PrivateLinkage, format_const, "BasicBlockPrintfFormatStr");
+      Constant *format_const;
       printf_func = printf_prototype(*Context, &M);
+
       // Edge Profiling Setup
       // edge str 1 and 2
       const char *edgeStr1 = "EDGE PROFILING:\n";
@@ -152,13 +146,13 @@ namespace {
           ConstantInt::get(Type::getInt32Ty(*Context), 0)), "edge_cnt_array");
 
       // zero var and r (same value for now)
-      zeroVar = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, 
+      zeroVar = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::PrivateLinkage, 
           ConstantInt::get(Type::getInt32Ty(*Context), 0), "zeroVar");
-      rVar = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::InternalLinkage, 
+      rVar = new GlobalVariable(M, Type::getInt32Ty(*Context), false, GlobalValue::PrivateLinkage, 
           ConstantInt::get(Type::getInt32Ty(*Context), 0), "rVar");
 
       //errs() << "Module: " << M.getName() << "\n";
- 
+
       return true;
     }
  
@@ -398,12 +392,19 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
     ew_vector.push_back(ew_be);
 
      //Print edge values
-   errs() << "Edge Values: {" << '\n';
+    //Edge values: {(b1,b3,0),(b3,b4,0),(b3,b5,1),(b4,b6,0),(b5,b6,0)}
+   errs() << "Edge Values: {" ;
+   std::string comm="";
    for (std::map<std::string,int>::iterator it=ball_larus_edge_values.begin(); it!=ball_larus_edge_values.end(); ++it){
-      errs() << " " << it->first << " => " << it->second << '\n';
+      std::string s=it->first;
+      std::string delimiter = " -> ";
+      std::string e1 = s.substr(0, s.find(delimiter));
+      std::string e2 = s.substr(s.find(delimiter)+4);
+      errs() << comm<<"(" << e1 <<"," << e2 <<"," << it->second <<")";
+      comm=",";
 
     }
-    errs() << "}" << '\n';
+    errs() << "}" << "\n\n";
 
 
       MaximumSpanningTree<BasicBlock> mst (ew_vector);
@@ -666,10 +667,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
       errs() << "BasicBlock: " << BB.getName() << '\n';
       IRBuilder<> IRB(BB.getFirstInsertionPt()); // Will insert the generated instructions BEFORE the first BB instruction
  
-      Value *loadAddr = IRB.CreateLoad(bbCounter);
-      Value *addAddr = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), 1), loadAddr);
-      IRB.CreateStore(addAddr, bbCounter);
-
       succ_iterator end = succ_end(&BB);
       for (succ_iterator sit = succ_begin(&BB);sit != end; ++sit){
 
@@ -857,6 +854,17 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
     }
 
     void insertEdgeInstrumentation(Function &F) {
+      // Count # of edges in function
+      int num_edges = 0;
+      for (auto& bb : F) {
+        succ_iterator end = succ_end(&bb);
+        for (succ_iterator sit = succ_begin(&bb);sit != end; ++sit) {
+          num_edges++;  
+        }
+      }
+      IRBuilder<> startBlockIRB(F.getEntryBlock().begin());
+      setArrayToZeroes(startBlockIRB, edge_cnt_array, num_edges); // clear array
+
       for (auto &BB : F) {
         std::string bbname = BB.getName().str();
 
@@ -954,7 +962,7 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
       }
     }
 
-    void setArrayToZeroes(IRBuilder<> IRB, AllocaInst *array, const int size) {
+    void setArrayToZeroes(IRBuilder<> IRB, Value *array, const int size) {
       // zero variable to store in array locations
       Value* zeroAddr = IRB.CreateLoad(zeroVar);  
 
