@@ -49,6 +49,7 @@ namespace {
 
     struct LoopDetails {
       AllocaInst *pathCntMem; // Pointer to count array
+      std::set<std::string> loopBlocks;  // blocks in loop
       BasicBlock *loop_header;  // Entry/head node of loop
       int numPaths;           // Number of paths from head to tail
       LoopDetails() : pathCntMem(NULL), loop_header(NULL), numPaths(0) {}
@@ -129,7 +130,6 @@ namespace {
 
       // order stays the same because the for loop stays the same. Then just make an array for the largest edge 
       // count. 
-      int bb_tmp = 0;
       int max_num_edges = 0;
       int num_edges = 0;
       // Go through each function
@@ -277,6 +277,9 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
       }
     }*/
    // MaximumSpanningTree<BasicBlock>::EdgeWeights ew_vector;
+      // Path profiling variables
+      LoopDetails loopData;
+      loopData.loop_header = innermost_loop_header;
       int num_loop_exits=0;
       std::map<BasicBlock*, int> loop_exit_edges;
       for(unsigned int i=0; i<reversed_results.size(); i++){
@@ -308,6 +311,10 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
                   edge_val=num_paths[v_name];
                   ball_larus_edge_values[edge_name]=edge_val;
                   num_paths[v_name]=(num_paths[v_name]+num_paths[w_name]);
+
+                  // Save loop contents in loop details 
+                  loopData.loopBlocks.insert(v_name);
+                  loopData.loopBlocks.insert(w_name);
                 }
               }else{
                 num_loop_exits++;
@@ -322,9 +329,9 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
         }
       }
 
-      // Path profiling details
-      loopDetails.push_back(LoopDetails(innermost_loop_header, 
-          num_paths[innermost_loop_header->getName().str()]));
+      // Push path profiling details to vector
+      loopData.numPaths = num_paths[innermost_loop_header->getName().str()];
+      loopDetails.push_back(loopData);
 
   std::reverse(sorted_results2.begin(),sorted_results2.end());
   //Approx. edge frequencies
@@ -552,6 +559,7 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
       count_path_instrumentation.clear();
       r_plus_eq_path_instrumentation.clear();
       ball_larus_edge_values.clear();
+      loop_header_tail.clear();
 
       return true; 
 }
@@ -864,7 +872,6 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
             // Get successor index into Value*
             const char* blockName = sit->getName().str().c_str();
             int64_t blockIdx = std::atoi(blockName + 7); // ignore "bb_edge"
-            Value* srcAddr = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), blockIdx), loadAddr);
 
             // Get array elem ptr edge count into Value*
             Value *edgePtr = getEdgeFreqPtr(IRB, blockIdx);
@@ -898,8 +905,8 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
       for (auto &BB : F) {
         std::string bbname = BB.getName().str();
 
-        // Only look at non-edge nodes
-        if (bbname.size() < 7 || bbname.substr(0,7) != "bb_edge") {
+        // Only look at non-edge nodes in the loop
+        if (loop.loopBlocks.find(bbname) != loop.loopBlocks.end()) {
           // Iterate through connected edge nodes (always children of regular nodes)
           // Inserts instrumentation node for each edge
           succ_iterator end = succ_end(&BB);
@@ -952,7 +959,7 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
       Value* zeroAddr = IRB.CreateLoad(zeroVar);  
 
       // store zero in each array element
-      for(unsigned int i = 0; i < size; i++) {
+      for(int i = 0; i < size; i++) {
         // Array index
         Value* indexVal = IRB.CreateAdd(ConstantInt::get(Type::getInt32Ty(*Context), i), zeroAddr);
 
@@ -1071,7 +1078,7 @@ int Dir(MaximumSpanningTree<BasicBlock>::Edge e, MaximumSpanningTree<BasicBlock>
 
       // Output profile for each loop's paths
       for (auto &loop : loopDetails) {
-        for(unsigned int i = 0; i < loop.numPaths; i++) {
+        for(int i = 0; i < loop.numPaths; i++) {
           // Super helpful zero variable
           Value* zeroAddr = IRB.CreateLoad(zeroVar);  
 
