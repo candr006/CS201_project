@@ -524,7 +524,12 @@ for(unsigned int i = 0; i < is_innermost.size(); i++ ){
     }
 
       //end of is_innermost[i] if loop - code above will be repeated for each innermost loop
+      //clear global variables
       ball_larus_edge_values.clear();
+      basic_block_key_map.clear();
+      num_not_visited=0;
+      num_paths.clear();
+      ew_vector.clear();
     }
   }
 
